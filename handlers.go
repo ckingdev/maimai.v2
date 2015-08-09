@@ -4,91 +4,14 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
-	// "strconv"
 	"strings"
-	// "time"
 
 	"euphoria.io/heim/proto"
-	// "github.com/boltdb/bolt"
 	"github.com/cpalone/gobot"
 	"golang.org/x/net/html"
 )
 
 var linkMatcher = regexp.MustCompile("(https?://)?[\\S]+\\.[\\S][\\S]+[\\S^\\.]")
-
-// type SeenHandler struct {
-// 	seenTime map[string]time.Time
-// }
-
-// func SetDBKey(db *bolt.DB, bucket, key, val []byte) error {
-// 	return db.Update(func(tx *bolt.Tx) error {
-// 		b := tx.Bucket(bucket)
-// 		return b.Put(key, val)
-// 	})
-// }
-
-// func IsSeenCommand(msg string) bool {
-// 	if strings.HasPrefix(msg, "!seen @") && len(msg) > 7 {
-// 		return true
-// 	}
-// 	return false
-// }
-
-// func GetDBKey(db *bolt.DB, bucket, key []byte) ([]byte, error) {
-// 	var val []byte
-// 	err := db.View(func(tx *bolt.Tx) error {
-// 		b := tx.Bucket(bucket)
-// 		val = b.Get(key)
-// 		return nil
-// 	})
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	return val, nil
-// }
-
-// func (sh *SeenHandler) HandleIncoming(r *gobot.Room, p *proto.Packet) (*proto.Packet, error) {
-// 	if p.Type != proto.SendEventType {
-// 		return nil, nil
-// 	}
-// 	payload, err := p.Payload()
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	msg, ok := payload.(*proto.SendEvent)
-// 	if !ok {
-// 		return nil, fmt.Errorf("Could not assert payload as *proto.SendEvent.")
-// 	}
-// 	if err := SetDBKey(r.DB,
-// 		[]byte("seen"),
-// 		[]byte(msg.Sender.Name),
-// 		[]byte(strconv.FormatInt(time.Now().Unix(), 10))); err != nil {
-// 		return err
-// 	}
-// 	if !IsSeenCommand(msg.Content) {
-// 		return nil, nil
-// 	}
-// 	user := msg.Content[7:]
-// 	t, err := GetDBKey(r.DB, []byte("seen"), []byte(msg.Sender.Name))
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	var reply string
-// 	if t == nil {
-// 		reply = "User has not been seen yet."
-// 	} else {
-// 		lastSeenInt, _ := strconv.Atoi(string(t))
-// 		lastSeenTime := time.Unix(int64(lastSeenInt, 0))
-// 		since := time.Since(lastSeenTime)
-// 		reply = fmt.Sprintf("Seen %v hours ago.", int(since.Hours()))
-// 	}
-// 	repPayload := proto.SendCommand{Parent: msg.ID, Content: reply}
-// 	repPacket, err := gobot.MakePacket(proto.SendType, repPayload)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	return repPacket, nil
-// }
 
 type LinkTitleHandler struct{}
 
@@ -133,6 +56,7 @@ func (l *LinkTitleHandler) HandleIncoming(r *gobot.Room, p *proto.Packet) (*prot
 	if p.Type != proto.SendEventType {
 		return nil, nil
 	}
+	r.Logger.Debugf("Handler received SendEvent")
 	payload, err := p.Payload()
 	if err != nil {
 		return nil, err
@@ -141,16 +65,26 @@ func (l *LinkTitleHandler) HandleIncoming(r *gobot.Room, p *proto.Packet) (*prot
 	if !ok {
 		return nil, fmt.Errorf("Could not assert SendEvent as such.")
 	}
+	r.Logger.Debugf("Received message with content: %s", msg.Content)
 	urls := linkMatcher.FindAllString(msg.Content, -1)
 	for _, url := range urls {
+		r.Logger.Debugf("Trying URL %s", url)
 		if !strings.HasPrefix(url, "http") {
 			url = "http://" + url
 		}
 		title, err := getLinkTitle(url)
-		if err != nil && title != "" {
+		if err == nil && title != "" {
 			r.SendText(&msg.ID, "Link title: "+title)
 			break
 		}
 	}
 	return nil, nil
+}
+
+func (l *LinkTitleHandler) Run(r *gobot.Room) {
+	return
+}
+
+func (l *LinkTitleHandler) Stop(r *gobot.Room) {
+	return
 }
