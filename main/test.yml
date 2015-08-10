@@ -1,0 +1,8 @@
+Bot:
+    Name: MaiMai
+    DbPath: MaiMai_test.db
+Rooms:
+-
+    RoomName: test
+-
+    RoomName: testing
