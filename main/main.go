@@ -8,7 +8,7 @@ import (
 
 
 func main() {
-	b, err := config.BotFromCfgFile("test.yml")
+	b, err := config.BotFromCfgFile("MaiMai.yml")
 	if err != nil {
 		panic(err)
 	}
