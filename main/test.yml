@@ -6,3 +6,6 @@ Rooms:
     RoomName: test
 -
     RoomName: testing
+FollowBotProtocol: true
+LongHelp: MaiMai provides link titles as well as some basic commands. !ping will prompt a response of 'pong!', as will !ping @MaiMai. !uptime or !uptime @MaiMai will tell you how many hours the bot has been up.
+ShortHelp: MaiMai provides titles for links as well as a base set of commands. Try !help @MaiMai.

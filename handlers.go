@@ -13,6 +13,33 @@ import (
 
 var linkMatcher = regexp.MustCompile("(https?://)?[\\S]+\\.[\\S][\\S]+[\\S^\\.]")
 
+var commandMatcher = regexp.MustCompile("![\\S]+ @[\\S]+")
+
+func getCommandAndUser(text string) (string, string, error) {
+	matches := commandMatcher.FindAllString(text, -1)
+	if matches == nil {
+		return "", "", fmt.Errorf("getCommandAndUser: no matches found")
+	}
+	// Take first match only
+	s := matches[0]
+	splits := strings.Split(s, " ")
+	if len(splits) != 2 {
+		return "", "", fmt.Errorf("getCommandAndUser: invalid command")
+	}
+	return splits[0], splits[1][1:], nil
+}
+
+func isCommand(text string) bool {
+	if commandMatcher.FindAllString(text, -1) == nil {
+		return false
+	}
+	return true
+}
+
+// LinkTitleHandler searches each SendEvent for urls and posts the link title
+// (if available) for the first valid link it finds.
+//
+// It is an empty struct because it does not need to maintain state.
 type LinkTitleHandler struct{}
 
 func extractTitleFromTree(z *html.Tokenizer) string {
@@ -52,6 +79,8 @@ func getLinkTitle(url string) (string, error) {
 	return extractTitleFromTree(z), nil
 }
 
+// HandleIncoming checks incoming SendEvents for URLs and posts the link title
+// for the first URL returning a valid title.
 func (l *LinkTitleHandler) HandleIncoming(r *gobot.Room, p *proto.Packet) (*proto.Packet, error) {
 	if p.Type != proto.SendEventType {
 		return nil, nil
@@ -81,10 +110,12 @@ func (l *LinkTitleHandler) HandleIncoming(r *gobot.Room, p *proto.Packet) (*prot
 	return nil, nil
 }
 
+// Run is a no-op.
 func (l *LinkTitleHandler) Run(r *gobot.Room) {
 	return
 }
 
+// Stop is a no-op.
 func (l *LinkTitleHandler) Stop(r *gobot.Room) {
 	return
 }
