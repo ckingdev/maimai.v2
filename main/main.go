@@ -1,6 +1,10 @@
 package main
 
 import (
+	"fmt"
+	"sync"
+
+	"github.com/cpalone/gobot"
 	"github.com/cpalone/gobot/config"
 	"github.com/cpalone/maimai.v2"
 )
@@ -10,12 +14,20 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	// var LongDesc = "MaiMai provides link titles as well as some basic commands. !ping will prompt a response of 'pong!', as will !ping @MaiMai. !uptime or !uptime @MaiMai will tell you how many hours the bot has been up."
-	// var ShortDesc = "MaiMai provides titles for links as well as a base set of commands. Try !help @MaiMai."
 	for _, room := range b.Rooms {
 		room.Handlers = append(room.Handlers,
 			&maimai.LinkTitleHandler{},
 		)
 	}
-	b.RunAllRooms()
+	fmt.Println(b.Rooms)
+	var wg sync.WaitGroup
+	for _, room := range b.Rooms {
+		wg.Add(1)
+		go func(r *gobot.Room) {
+			defer wg.Done()
+			err := r.Run()
+			fmt.Printf("Room %s finished running: %s", r.RoomName, err)
+		}(room)
+	}
+	wg.Wait()
 }
