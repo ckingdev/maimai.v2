@@ -52,7 +52,8 @@ func extractTitleFromTree(z *html.Tokenizer) string {
 		case html.TextToken:
 			if depth > 0 {
 				title := strings.TrimSpace(string(z.Text()))
-				if title == "Imgur" {
+				lower := strings.ToLower(title)
+				if strings.HasPrefix(lower, "imgur") {
 					return ""
 				}
 				return title
@@ -93,6 +94,9 @@ func (l *LinkTitleHandler) HandleIncoming(r *gobot.Room, p *proto.Packet) (*prot
 	msg, ok := payload.(*proto.SendEvent)
 	if !ok {
 		return nil, fmt.Errorf("Could not assert SendEvent as such.")
+	}
+	if msg.Sender.Name == "euphoriabot" {
+		return nil, nil
 	}
 	r.Logger.Debugf("Received message with content: %s", msg.Content)
 	urls := linkMatcher.FindAllString(msg.Content, -1)
