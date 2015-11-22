@@ -1,14 +1,18 @@
 package maimai
 
 import (
+	"database/sql"
 	"fmt"
 	"net/http"
 	"regexp"
 	"strings"
 
 	"euphoria.io/heim/proto"
+	"euphoria.io/heim/proto/snowflake"
 	"github.com/cpalone/gobot"
+	"github.com/mattn/go-sqlite3"
 	"golang.org/x/net/html"
+	"gopkg.in/gorp.v1"
 )
 
 var linkMatcher = regexp.MustCompile("(https?://)?[\\S]+\\.[\\S][\\S]+[\\S^\\.]")
@@ -122,4 +126,65 @@ func (l *LinkTitleHandler) Run(r *gobot.Room) {
 // Stop is a no-op.
 func (l *LinkTitleHandler) Stop(r *gobot.Room) {
 	return
+}
+
+type LogHandler struct {
+	dbmap *gorp.DbMap
+}
+
+type LogMessage struct {
+	MessageID snowflake.Snowflake `db:"message_id"`
+	Parent    snowflake.Snowflake `db:"parent"`
+	UnixTime  proto.Time          `db:"time"`
+	Sender    string              `db:"sender"`
+}
+
+func (l *LogHandler) Run(r *gobot.Room) {
+	db, err := sql.Open("sqlite3", fmt.Sprintf("%s.db", r.RoomName))
+	if err != nil {
+		r.Ctx.Terminate(err)
+		return
+	}
+	defer db.Close()
+	dbmap := &gorp.DbMap{Db: db, Dialect: gorp.SqliteDialect{}}
+
+	dbmap.AddTableWithName(LogMessage{}, "messages").SetKeys(false, "message_id")
+
+	if err := dbmap.CreateTablesIfNotExists(); err != nil {
+		r.Ctx.Terminate(err)
+		return
+	}
+	l.dbmap = dbmap
+}
+
+func (l *LogHandler) HandleIncoming(r *gobot.Room, p *proto.Packet) (*proto.Packet, error) {
+	if p.Type != proto.SendEventType {
+		return nil, nil
+	}
+	data, err := p.Payload()
+	if err != nil {
+		return nil, err
+	}
+	payload, ok := data.(*proto.SendEvent)
+	if !ok {
+		return nil, fmt.Errorf("Error asserting SendEvent as such")
+	}
+
+	// log the message to the database
+	msg := &LogMessage{
+		MessageID: payload.ID,
+		Parent:    payload.Parent,
+		UnixTime:  payload.UnixTime,
+		Sender:    payload.Sender.Name,
+	}
+	if err := l.dbmap.Insert(msg); err != nil {
+		return nil, err
+	}
+
+	// check if message requests a recording
+	if payload.Content != "!save" {
+		return nil, nil
+	}
+	fmt.Println("!save command received")
+	return nil, nil
 }
